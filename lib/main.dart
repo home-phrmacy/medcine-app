@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phrm_app/main_nav_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/auth_screen.dart';
 import 'services/notification_service.dart';
@@ -32,7 +33,7 @@ class HomePharmacyApp extends StatelessWidget {
           primary: const Color(0xFFE57373),
         ),
       ),
-      home: const AuthScreen(),
+      home: const MainNavScreen(),
     );
   }
 }
