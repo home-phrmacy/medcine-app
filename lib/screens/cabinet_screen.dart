@@ -8,6 +8,7 @@ class CabinetScreen extends StatefulWidget {
 }
 
 class _CabinetScreenState extends State<CabinetScreen> {
+  
   final List<Map<String, dynamic>> userCabinets = [];
   String? selectedCabinet;
 
