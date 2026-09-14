@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-class HomeEmergencySheet extends StatelessWidget {
-  const HomeEmergencySheet({super.key});
+class FirstAidScreen extends StatelessWidget {
+  const FirstAidScreen({super.key});
 
   static void show(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const HomeEmergencySheet(),
+      builder: (context) => const FirstAidScreen(),
     );
   }
 
