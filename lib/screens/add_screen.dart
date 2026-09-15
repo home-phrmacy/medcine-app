@@ -1,8 +1,8 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/gemini_scanner_service.dart';
 
 class AddScreen extends StatefulWidget {
   const AddScreen({super.key});
@@ -16,27 +16,28 @@ class _AddScreenState extends State<AddScreen> {
   final ImagePicker _picker = ImagePicker();
 
   Uint8List? _selectedImageBytes;
-  bool _isAnalyzing = false;
+  String? _base64Image;
   bool _isAnalyzed = false;
 
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _categoryController = TextEditingController();
-  final TextEditingController _activeIngredientController = TextEditingController();
-  final TextEditingController _storageController = TextEditingController();
-  final TextEditingController _totalPillsController = TextEditingController();
-
-  // خانة يدخل فيها المستخدم مدة الكورس بنفسه
   final TextEditingController _courseDurationController = TextEditingController();
+
+  final DateTime _startDate = DateTime.now();
+  DateTime? _endDate;
 
   String? _selectedCabinetId;
   List<Map<String, dynamic>> _userCabinets = [];
   bool _isLoadingCabinets = true;
 
-  // هل الدواء مزمن؟
+  // 1. خيار هل هو علاج مزمن؟
   bool _isChronic = false;
 
-  // تفعيل التنبيهات
+  // 2. خيار تفعيل التنبيهات والإشعارات
   bool _enableNotifications = false;
+
+  // أيام التنبيه
+  final List<String> _daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final Set<String> _selectedDays = {'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'};
 
   int _dosesPerDay = 1;
 
@@ -49,6 +50,22 @@ class _AddScreenState extends State<AddScreen> {
   void initState() {
     super.initState();
     _fetchUserCabinets();
+    _courseDurationController.addListener(_calculateEndDate);
+  }
+
+  void _calculateEndDate() {
+    final int? days = int.tryParse(_courseDurationController.text);
+    setState(() {
+      if (days != null && days > 0) {
+        _endDate = _startDate.add(Duration(days: days));
+      } else {
+        _endDate = null;
+      }
+    });
+  }
+
+  String _formatDate(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
   Future<void> _fetchUserCabinets() async {
@@ -83,10 +100,6 @@ class _AddScreenState extends State<AddScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _categoryController.dispose();
-    _activeIngredientController.dispose();
-    _storageController.dispose();
-    _totalPillsController.dispose();
     _courseDurationController.dispose();
     for (var c in _timeControllers) {
       c.dispose();
@@ -94,36 +107,29 @@ class _AddScreenState extends State<AddScreen> {
     super.dispose();
   }
 
-  Future<void> _pickAndAnalyzeImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source) async {
     try {
-      final XFile? file = await _picker.pickImage(source: source, imageQuality: 85);
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        imageQuality: 70, // ضغط مناسب للحفظ السريع والواضح
+        maxWidth: 600,
+        maxHeight: 600,
+      );
       if (file == null) return;
 
       final bytes = await file.readAsBytes();
+      final base64String = "data:image/png;base64,${base64Encode(bytes)}";
+
       setState(() {
         _selectedImageBytes = bytes;
-        _isAnalyzing = true;
-      });
-
-      final scanner = GeminiScannerService();
-      final Map<String, dynamic> result = await scanner.scanMedicinePackage(file);
-
-      setState(() {
-        _nameController.text = result['name']?.toString() ?? '';
-        _categoryController.text = result['category']?.toString() ?? '';
-        _activeIngredientController.text = result['active_ingredient']?.toString() ?? '';
-        _storageController.text = result['storage']?.toString() ?? '';
-        _totalPillsController.text = (result['pills'] ?? '20').toString();
-
-        _isAnalyzing = false;
+        _base64Image = base64String;
         _isAnalyzed = true;
       });
     } catch (e) {
-      setState(() => _isAnalyzing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error analyzing image: $e'),
+            content: Text('Error selecting image: $e'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -241,17 +247,14 @@ class _AddScreenState extends State<AddScreen> {
     );
   }
 
-  Widget _buildReadOnlyField({
-    required TextEditingController controller,
+  Widget _buildFieldBox({
     required String label,
+    required String value,
     required IconData icon,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: TextFormField(
-        controller: controller,
-        readOnly: true,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+      child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
@@ -267,6 +270,10 @@ class _AddScreenState extends State<AddScreen> {
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide(color: Colors.grey.shade200),
           ),
+        ),
+        child: Text(
+          value,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
         ),
       ),
     );
@@ -289,14 +296,14 @@ class _AddScreenState extends State<AddScreen> {
             'user_id': user.id,
             'cabinet_id': _selectedCabinetId,
             'name': _nameController.text.trim(),
-            'category': _categoryController.text.trim(),
-            'active_ingredient': _activeIngredientController.text.trim(),
-            'storage': _storageController.text.trim(),
-            'total_pills': int.tryParse(_totalPillsController.text) ?? 0,
+            'image_url': _base64Image, // حفظ الصورة المحولة مباشرة بدون روابط
+            'start_date': _formatDate(_startDate),
             'is_chronic': _isChronic,
             'course_days': _isChronic ? null : int.tryParse(_courseDurationController.text),
+            'end_date': (_isChronic || _endDate == null) ? null : _formatDate(_endDate!),
             'enable_notifications': _enableNotifications,
-            'doses_per_day': _enableNotifications ? _dosesPerDay : 1,
+            'notification_days': _enableNotifications ? _selectedDays.toList() : [],
+            'doses_per_day': _enableNotifications ? _dosesPerDay : 0,
             'dose_times': formattedTimes,
           });
         }
@@ -309,6 +316,13 @@ class _AddScreenState extends State<AddScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
+          setState(() {
+            _isAnalyzed = false;
+            _selectedImageBytes = null;
+            _base64Image = null;
+            _nameController.clear();
+            _courseDurationController.clear();
+          });
         }
       } catch (e) {
         if (mounted) {
@@ -346,6 +360,7 @@ class _AddScreenState extends State<AddScreen> {
                   setState(() {
                     _isAnalyzed = false;
                     _selectedImageBytes = null;
+                    _base64Image = null;
                   });
                 },
               ),
@@ -360,7 +375,7 @@ class _AddScreenState extends State<AddScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // بطاقة رفع الصورة
+                  // 1. بطاقة الرفع الأولية
                   if (!_isAnalyzed)
                     Container(
                       width: double.infinity,
@@ -390,7 +405,7 @@ class _AddScreenState extends State<AddScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Upload a photo of your medicine box for AI analysis',
+                            'Upload a photo of your medicine box',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 11.5,
@@ -400,7 +415,7 @@ class _AddScreenState extends State<AddScreen> {
                           const SizedBox(height: 24),
 
                           InkWell(
-                            onTap: () => _pickAndAnalyzeImage(ImageSource.gallery),
+                            onTap: () => _pickImage(ImageSource.gallery),
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
                               width: double.infinity,
@@ -475,7 +490,7 @@ class _AddScreenState extends State<AddScreen> {
                             width: double.infinity,
                             height: 44,
                             child: OutlinedButton.icon(
-                              onPressed: () => _pickAndAnalyzeImage(ImageSource.camera),
+                              onPressed: () => _pickImage(ImageSource.camera),
                               icon: const Icon(
                                 Icons.camera_alt_outlined,
                                 size: 16,
@@ -501,28 +516,8 @@ class _AddScreenState extends State<AddScreen> {
                       ),
                     ),
 
-                  // لودينق التحليل
-                  if (_isAnalyzing)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 28.0),
-                      child: Column(
-                        children: [
-                          const CircularProgressIndicator(color: Color(0xFFE57373)),
-                          const SizedBox(height: 14),
-                          Text(
-                            'Analyzing medicine package with AI...',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // تفاصيل الدواء بعد اكتمال التحليل
-                  if (_isAnalyzed && !_isAnalyzing) ...[
+                  // 2. نموذج بيانات الدواء
+                  if (_isAnalyzed) ...[
                     if (_selectedImageBytes != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 20.0),
@@ -590,35 +585,48 @@ class _AddScreenState extends State<AddScreen> {
 
                     const SizedBox(height: 14),
 
-                    _buildReadOnlyField(
-                      controller: _nameController,
-                      label: 'Medicine Name',
-                      icon: Icons.medication_outlined,
-                    ),
-                    _buildReadOnlyField(
-                      controller: _categoryController,
-                      label: 'Category',
-                      icon: Icons.category_outlined,
-                    ),
-                    _buildReadOnlyField(
-                      controller: _activeIngredientController,
-                      label: 'Active Ingredient',
-                      icon: Icons.science_outlined,
-                    ),
-                    _buildReadOnlyField(
-                      controller: _storageController,
-                      label: 'Storage Instructions',
-                      icon: Icons.thermostat_outlined,
-                    ),
-                    _buildReadOnlyField(
-                      controller: _totalPillsController,
-                      label: 'Total Quantity / Pills',
-                      icon: Icons.numbers_outlined,
+                    // Medicine Name
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: TextFormField(
+                        controller: _nameController,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty) ? 'Please enter medicine name' : null,
+                        decoration: InputDecoration(
+                          labelText: 'Medicine Name *',
+                          hintText: 'Enter medicine name',
+                          labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          prefixIcon: const Icon(Icons.medication_outlined, color: Color(0xFFE57373), size: 20),
+                          filled: true,
+                          fillColor: const Color(0xFFFAFAFA),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: Color(0xFFE57373), width: 1.5),
+                          ),
+                        ),
+                      ),
                     ),
 
-                    const SizedBox(height: 10),
+                    // Start Date
+                    _buildFieldBox(
+                      label: 'Start Date',
+                      value: _formatDate(_startDate),
+                      icon: Icons.calendar_today_rounded,
+                    ),
 
-                    // خيار مزمن أم مؤقت
+                    const SizedBox(height: 2),
+
+                    // --- هل هو علاج مزمن؟ ---
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
@@ -641,7 +649,7 @@ class _AddScreenState extends State<AddScreen> {
                                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
                                   ),
                                   Text(
-                                    _isChronic ? 'Continuous treatment' : 'Temporary treatment',
+                                    _isChronic ? 'For long-term / daily treatment' : 'Temporary treatment',
                                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                                   ),
                                 ],
@@ -651,24 +659,38 @@ class _AddScreenState extends State<AddScreen> {
                           Switch(
                             value: _isChronic,
                             activeColor: const Color(0xFFE57373),
-                            onChanged: (val) => setState(() => _isChronic = val),
+                            onChanged: (val) {
+                              setState(() {
+                                _isChronic = val;
+                                if (_isChronic) {
+                                  _courseDurationController.clear();
+                                  _endDate = null;
+                                }
+                              });
+                            },
                           ),
                         ],
                       ),
                     ),
 
-                    // إذا لم يكن مزمناً: تظهر خانة للمستخدم ليكتب مدة الكورس بالأيام
+                    // مدة الكورس وتاريخ الانتهاء
                     if (!_isChronic) ...[
                       const SizedBox(height: 14),
                       TextFormField(
                         controller: _courseDurationController,
                         keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (!_isChronic && (value == null || value.trim().isEmpty)) {
+                            return 'Please enter course duration';
+                          }
+                          return null;
+                        },
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
                         decoration: InputDecoration(
                           labelText: 'Course Duration (in days) *',
                           hintText: 'e.g. 7 or 10',
                           labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                          prefixIcon: const Icon(Icons.calendar_today_rounded, color: Color(0xFFE57373), size: 20),
+                          prefixIcon: const Icon(Icons.timelapse_rounded, color: Color(0xFFE57373), size: 20),
                           filled: true,
                           fillColor: Colors.white,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -686,11 +708,19 @@ class _AddScreenState extends State<AddScreen> {
                           ),
                         ),
                       ),
+                      if (_endDate != null) ...[
+                        const SizedBox(height: 14),
+                        _buildFieldBox(
+                          label: 'Course End Date',
+                          value: _formatDate(_endDate!),
+                          icon: Icons.event_available_rounded,
+                        ),
+                      ],
                     ],
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
-                    // خيار تفعيل التنبيهات
+                    // --- تفعيل التنبيهات والإشعارات ---
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
@@ -736,10 +766,62 @@ class _AddScreenState extends State<AddScreen> {
                       ),
                     ),
 
-                    // أوقات الجرعات والـ AM/PM عند تفعيل التنبيهات
                     if (_enableNotifications) ...[
+                      const SizedBox(height: 20),
+
+                      // اختيار الأيام
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Reminder Days:',
+                          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _daysOfWeek.map((day) {
+                            final isDaySelected = _selectedDays.contains(day);
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6.0),
+                              child: FilterChip(
+                                label: Text(day),
+                                selected: isDaySelected,
+                                selectedColor: const Color(0xFFE57373),
+                                checkmarkColor: Colors.white,
+                                labelStyle: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isDaySelected ? Colors.white : Colors.grey.shade700,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: isDaySelected ? const Color(0xFFE57373) : Colors.grey.shade300,
+                                  ),
+                                ),
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedDays.add(day);
+                                    } else {
+                                      if (_selectedDays.length > 1) {
+                                        _selectedDays.remove(day);
+                                      }
+                                    }
+                                  });
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
                       const SizedBox(height: 16),
 
+                      // تكرار الجرعة (1x أو 2x)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [

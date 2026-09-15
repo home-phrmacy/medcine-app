@@ -1,179 +1,285 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FirstAidScreen extends StatelessWidget {
   const FirstAidScreen({super.key});
 
-  static void show(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const FirstAidScreen(),
-    );
+  // دالة الاتصال المباشر برقم الطوارئ
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      }
+    } catch (_) {
+      // التعامل مع بيئة الويب أو في حال عدم توفر تطبيق اتصال
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF9F1ED),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 44,
-            height: 4.5,
-            decoration: BoxDecoration(
-              color: const Color(0xFF8D8783).withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: const Color(0xFFFBEBEA), borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.health_and_safety_rounded, color: Color(0xFFE57373), size: 22),
-                ),
-                const SizedBox(width: 12),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Home Emergency Guide", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF2A272A))),
-                    SizedBox(height: 2),
-                    Text("Instant protocols & emergency hotlines", style: TextStyle(fontSize: 11, color: Color(0xFF8D8783))),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F7F2),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // الهيدر العلوي
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFDECEB),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.shield_outlined,
+                      color: Color(0xFFE57373),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE57373),
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              BoxShadow(color: const Color(0xFFE57373).withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4)),
-                            ],
-                          ),
-                          child: const Column(
-                            children: [
-                              Icon(Icons.emergency_rounded, color: Colors.white, size: 24),
-                              SizedBox(height: 6),
-                              Text("Ambulance", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
-                              Text("997", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
-                            ],
-                          ),
+                      const Text(
+                        'Home Emergency Guide',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D3142),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFDFBF9),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: const Color(0xFFEFE8E3), width: 1.2),
-                          ),
-                          child: const Column(
-                            children: [
-                              Icon(Icons.support_agent_rounded, color: Color(0xFF2E6335), size: 24),
-                              SizedBox(height: 6),
-                              Text("Poison / Advice", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF8D8783))),
-                              Text("937", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF2E6335))),
-                            ],
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Instant protocols & emergency hotlines',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.grey.shade500,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Text("First Aid Protocols", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF2A272A))),
-                  const SizedBox(height: 10),
-                  _buildProtocolItem(
-                    icon: Icons.medication_liquid_rounded,
-                    title: "Accidental Overdose / Poisoning",
-                    subtitle: "Swallowed wrong pills or chemicals",
-                    steps: [
-                      "Do NOT induce vomiting unless instructed by a medical doctor.",
-                      "Keep the medicine package near you to state active ingredients.",
-                      "Immediately call 937 for toxicology guidance.",
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildProtocolItem(
-                    icon: Icons.local_fire_department_rounded,
-                    title: "Burns & Scalds",
-                    subtitle: "Thermal or chemical contact",
-                    steps: [
-                      "Cool the burn with cool running water for 10 to 20 minutes.",
-                      "Never apply ice, toothpaste, or oil.",
-                      "Cover loosely with sterile plastic cling film or clean cloth.",
                     ],
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildProtocolItem({required IconData icon, required String title, required String subtitle, required List<String> steps}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDFBF9),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 3)),
-        ],
-      ),
-      child: Theme(
-        data: ThemeData().copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: const Color(0xFFF5EFEB), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: const Color(0xFFE57373), size: 18),
-          ),
-          title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2A272A))),
-          subtitle: Text(subtitle, style: const TextStyle(fontSize: 10, color: Color(0xFF8D8783))),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: steps.map((step) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("• ", style: TextStyle(color: Color(0xFFE57373), fontWeight: FontWeight.bold)),
-                      Expanded(child: Text(step, style: const TextStyle(fontSize: 11, color: Color(0xFF2A272A)))),
-                    ],
+              const SizedBox(height: 20),
+
+              // بطاقتي الاتصال السريع (قابلة للنقر للاتصال المباشر)
+              Row(
+                children: [
+                  // كارد الإسعاف 997
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _makePhoneCall('997'),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 22),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE57373),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33E57373),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: const [
+                            Icon(Icons.emergency, color: Colors.white, size: 28),
+                            SizedBox(height: 8),
+                            Text(
+                              'Ambulance',
+                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              '997',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                )).toList(),
+                  const SizedBox(width: 14),
+
+                  // كارد الاستشارات والسموم 937
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _makePhoneCall('937'),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 22),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x05000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: const [
+                            Icon(Icons.support_agent_rounded, color: Color(0xFF2D3142), size: 28),
+                            SizedBox(height: 8),
+                            Text(
+                              'Poison / Advice',
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              '937',
+                              style: TextStyle(
+                                color: Color(0xFF2D3142),
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+
+              const SizedBox(height: 26),
+
+              // عنوان القسم
+              const Text(
+                'Home Emergency',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3142),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // قائمة الـ 5 كاردز المباشرة بدون سحب
+              ...[
+                {
+                  'title': 'Accidental Overdose / Poisoning',
+                  'subtitle': 'Swallowed wrong pills or chemicals',
+                  'action': 'Do NOT induce vomiting. Call 937 immediately and keep the medicine box.',
+                  'icon': Icons.medical_services_outlined,
+                },
+                {
+                  'title': 'Burns & Scalds',
+                  'subtitle': 'Thermal or chemical contact',
+                  'action': 'Cool under running tap water for 15-20 min. Do NOT apply ice, oil, or paste.',
+                  'icon': Icons.local_fire_department_outlined,
+                },
+                {
+                  'title': 'Choking & Blocked Airway',
+                  'subtitle': 'Sudden inability to breathe or speak',
+                  'action': 'Give 5 firm back blows between shoulder blades, then 5 abdominal thrusts.',
+                  'icon': Icons.warning_amber_rounded,
+                },
+                {
+                  'title': 'Severe Cuts & Bleeding',
+                  'subtitle': 'Deep wounds or heavy bleeding',
+                  'action': 'Apply firm direct pressure with clean cloth. Elevate injured area above heart.',
+                  'icon': Icons.healing_outlined,
+                },
+                {
+                  'title': 'Fainting & Dizziness',
+                  'subtitle': 'Sudden loss of consciousness',
+                  'action': 'Lay flat on back, elevate feet 30 cm, loosen tight clothing, ensure fresh air.',
+                  'icon': Icons.accessibility_new_rounded,
+                },
+              ].map((item) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.grey.shade100),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x05000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDECEB),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        item['icon'] as IconData,
+                        color: const Color(0xFFE57373),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['title'] as String,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D3142),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item['subtitle'] as String,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9F7F2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              item['action'] as String,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFE57373),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );

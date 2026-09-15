@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../main.dart';
 import '../main_nav_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -205,8 +206,10 @@ class _AuthScreenState extends State<AuthScreen> {
               // كبسولة اختيار اللغة المدمجة والمطابقة
               GestureDetector(
                 onTap: () {
+                  final newLang = currentLang == 'EN' ? 'ع' : 'EN';
+                  appLocaleNotifier.value = Locale(newLang == 'ع' ? 'ar' : 'en');
                   setState(() {
-                    currentLang = currentLang == 'EN' ? 'ع' : 'EN';
+                    currentLang = newLang;
                   });
                 },
                 child: Container(

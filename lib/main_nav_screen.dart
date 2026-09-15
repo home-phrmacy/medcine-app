@@ -128,7 +128,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
               index: 3,
               icon: Icons.health_and_safety_outlined,
               activeIcon: Icons.health_and_safety_rounded,
-              label: 'First Aid',
+              label: 'Home Emergency',
             ),
 
             // 5. أقصى اليمين: History
