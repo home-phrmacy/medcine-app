@@ -110,31 +110,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
       DateTime selectedDateObj = nowObj.add(Duration(days: dayDifference));
       String selectedDateStr = "${selectedDateObj.year}-${selectedDateObj.month.toString().padLeft(2, '0')}-${selectedDateObj.day.toString().padLeft(2, '0')}";
 
-      var logQuery = client.from('dose_logs').select('medicine_id');
-      if (user != null) {
-        logQuery = logQuery.or('user_id.eq.${user.id},user_id.is.null');
-      }
-      final logRes = await logQuery.eq('taken_date', selectedDateStr);
-
       final Set<String> takenIds = {};
-      if (logRes is List) {
-        for (var row in logRes) {
-          if (row['medicine_id'] != null) {
-            takenIds.add(row['medicine_id'].toString());
+      try {
+        var logQuery = client.from('dose_logs').select('medicine_id');
+        if (user != null) {
+          logQuery = logQuery.or('user_id.eq.${user.id},user_id.is.null');
+        }
+        final logRes = await logQuery.eq('taken_date', selectedDateStr);
+
+        if (logRes is List) {
+          for (var row in logRes) {
+            if (row['medicine_id'] != null) {
+              takenIds.add(row['medicine_id'].toString());
+            }
           }
         }
+      } catch (_) {
+        // في حال لم يكن جدول dose_logs متوفراً بعد
       }
 
-      // 4 . حساب النسبة المئوية بدقة بناءً على سجلات التاريخ المحدد فقط
+      // 4 . حساب النسبة المئوية بدقة بناءً على أدوية اليوم المحدد فقط
+      final medsForThisDay = active.where((med) {
+        final rawDays = med['notification_days'];
+        if (rawDays == null) return true;
+        if (rawDays is List) {
+          if (rawDays.isEmpty) return true;
+          return rawDays.map((d) => d.toString()).contains(_selectedDay);
+        }
+        return true;
+      }).toList();
+
       int calculatedRate = 0;
-      if (active.isNotEmpty) {
+      if (medsForThisDay.isNotEmpty) {
         int takenCount = 0;
-        for (var m in active) {
+        for (var m in medsForThisDay) {
           if (takenIds.contains(m['id'].toString())) {
             takenCount++;
           }
         }
-        calculatedRate = ((takenCount / active.length) * 100).round();
+        calculatedRate = ((takenCount / medsForThisDay.length) * 100).round();
       } else {
         calculatedRate = 0;
       }
@@ -249,7 +263,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(right: 8.0),
                             child: InkWell(
-                              onTap: () => setState(() => _selectedDay = day),
+                              onTap: () {
+                                if (_selectedDay != day) {
+                                  setState(() {
+                                    _selectedDay = day;
+                                  });
+                                  _loadScreenData();
+                                }
+                              },
                               borderRadius: BorderRadius.circular(14),
                               child: Container(
                                 width: 52,

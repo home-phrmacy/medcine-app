@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:phrm_app/screens/auth_screen.dart';
 import 'package:phrm_app/screens/cabinet_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -234,6 +235,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _handleSignOut() async {
+    try {
+      await supabase.auth.signOut();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint("Sign out error: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final String liveDate =
@@ -244,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFFDFBF9),
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         toolbarHeight: 70,
         title: const Text(
           "Home Pharmacy",
@@ -254,6 +270,18 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Color(0xFF2A272A),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: Color(0xFFE57373),
+              size: 24,
+            ),
+            tooltip: 'Sign Out',
+            onPressed: _handleSignOut,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: _isLoadingData
