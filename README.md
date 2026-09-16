@@ -206,4 +206,4 @@ This application was developed as part of the **Tuwaiq Academy Bootcamp**.
 
 ## 📄 License
 
-Developed as part of Tuwaiq Academy training under the supervision of Eng. Mohammed Al-Awashiz.
+Developed as part of Tuwaiq Academy training under the supervision of T. Mohammed Al-Awashiz.
