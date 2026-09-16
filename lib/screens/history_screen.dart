@@ -47,14 +47,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (rate >= 40) return const Color(0xFFFFA726);
     return const Color(0xFFE57373);
   }
+  
+  List<Map<String, dynamic>> _medicinesForDay(String day) {
+    return _activeMedicines.where((med) {
+      final rawDays = med['notification_days'];
+      if (rawDays == null) return true;
+      if (rawDays is List) {
+        if (rawDays.isEmpty) return true;
+        return rawDays.map((d) => d.toString()).contains(day);
+      }
+      return true;
+    }).toList();
+  }
 
-  Future<void> _loadScreenData() async {
+ Future<void> _loadScreenData() async {
     setState(() => _isLoading = true);
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
 
     try {
-      // 1. جلب كل الأدوية
+      // 1 . جلب كل الأدوية
       var medQuery = client.from('medicines').select('*');
       if (user != null) {
         medQuery = medQuery.or('user_id.eq.${user.id},user_id.is.null');
@@ -62,10 +74,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final medRes = await medQuery.order('created_at', ascending: false);
       final List<Map<String, dynamic>> allMeds = List<Map<String, dynamic>>.from(medRes as List);
 
-      // 2. فحص الأدوية المنتهية والنشطة بناء على تاريخ اليوم
+      // 2 . فحص الأدوية المنتهية والنشطة بناء على تاريخ اليوم
       final now = DateTime.now();
       final todayDate = DateTime(now.year, now.month, now.day);
-      final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
       final List<Map<String, dynamic>> active = [];
       final List<Map<String, dynamic>> completed = [];
@@ -89,12 +100,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       }
 
-      // 3. جلب الجرعات التي وُضع عليها صح اليوم
+      // 3 . جلب الجرعات التي وُضع عليها صح بناءً على اليوم المحدد بدقة
+      DateTime nowObj = DateTime.now();
+      List<String> daysList = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      int todayIndex = daysList.indexOf(_actualToday);
+      int selectedIndex = daysList.indexOf(_selectedDay);
+      int dayDifference = selectedIndex - todayIndex;
+      
+      DateTime selectedDateObj = nowObj.add(Duration(days: dayDifference));
+      String selectedDateStr = "${selectedDateObj.year}-${selectedDateObj.month.toString().padLeft(2, '0')}-${selectedDateObj.day.toString().padLeft(2, '0')}";
+
       var logQuery = client.from('dose_logs').select('medicine_id');
       if (user != null) {
         logQuery = logQuery.or('user_id.eq.${user.id},user_id.is.null');
       }
-      final logRes = await logQuery.eq('taken_date', todayStr);
+      final logRes = await logQuery.eq('taken_date', selectedDateStr);
 
       final Set<String> takenIds = {};
       if (logRes is List) {
@@ -105,7 +125,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       }
 
-      // 4. حساب النسبة المئوية المباشرة
+      // 4 . حساب النسبة المئوية بدقة بناءً على سجلات التاريخ المحدد فقط
       int calculatedRate = 0;
       if (active.isNotEmpty) {
         int takenCount = 0;
@@ -115,6 +135,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           }
         }
         calculatedRate = ((takenCount / active.length) * 100).round();
+      } else {
+        calculatedRate = 0;
       }
 
       if (mounted) {
@@ -131,6 +153,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+    
   @override
   Widget build(BuildContext context) {
     final adherenceColor = _getAdherenceColor(_adherenceRate);
@@ -272,7 +295,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    if (_activeMedicines.isEmpty)
+                    if (_medicinesForDay(_selectedDay).isEmpty)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -292,9 +315,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _activeMedicines.length,
+                        itemCount: _medicinesForDay(_selectedDay).length,
                         itemBuilder: (context, index) {
-                          final med = _activeMedicines[index];
+                          final med = _medicinesForDay(_selectedDay)[index];
                           final medId = med['id'].toString();
                           final isTaken = _takenMedicineIds.contains(medId);
                           final rawTimes = med['notification_times'] ?? med['dose_times'] ?? [];

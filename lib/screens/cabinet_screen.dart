@@ -358,33 +358,49 @@ class _CabinetScreenState extends State<CabinetScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          if (isInsideCabinet)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF2D3142)),
-                              onPressed: () {
-                                setState(() {
-                                  selectedCabinetId = null;
-                                  selectedCabinetName = "All Cabinets";
-                                  selectedMedicineId = null;
-                                  searchQuery = "";
-                                });
-                              },
-                            ),
-                          if (isInsideCabinet) const SizedBox(width: 8),
-                          Text(
-                            isInsideCabinet ? selectedCabinetName : "Medicine Cabinet",
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2D3142),
-                            ),
-                          ),
-                        ],
+                   Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.all(8),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF2D3142)),
+                          onPressed: () {
+                            if (isInsideCabinet) {
+                              setState(() {
+                                selectedCabinetId = null;
+                                selectedCabinetName = "All Cabinets";
+                                selectedMedicineId = null;
+                                searchQuery = "";
+                              });
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          },
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isInsideCabinet ? selectedCabinetName : "Medicine Cabinet",
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D3142),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // زر إنشاء خزانة جديدة (موجود عندك أساساً تحت، أو اتركيه في الـ Row الخارجي)
+                ],
+              ),
                       // زر إنشاء خزانة جديدة في الأعلى
                       IconButton(
                         onPressed: _addNewCabinet,
