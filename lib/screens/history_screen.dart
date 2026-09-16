@@ -60,7 +60,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }).toList();
   }
 
- Future<void> _loadScreenData() async {
+  DateTime? _parseFlexibleDate(dynamic val) {
+    if (val == null) return null;
+    final s = val.toString().trim();
+    if (s.isEmpty) return null;
+
+    DateTime? dt = DateTime.tryParse(s);
+    if (dt != null) return dt;
+
+    try {
+      final parts = s.split(RegExp(r'[-/]'));
+      if (parts.length == 3) {
+        if (parts[0].length == 4) {
+          return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        } else if (parts[2].length == 4) {
+          return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _loadScreenData() async {
     setState(() => _isLoading = true);
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
@@ -82,13 +103,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final List<Map<String, dynamic>> completed = [];
 
       for (var med in allMeds) {
-        final isChronic = med['is_chronic'] == true;
-        final endStr = med['end_date']?.toString() ?? med['course_end_date']?.toString();
+        final isChronic = med['is_chronic'] == true || med['is_chronic']?.toString() == 'true';
+        final isArchived = med['is_archived'] == true || med['status'] == 'completed';
 
-        bool isEnded = false;
-        if (!isChronic && endStr != null && endStr.isNotEmpty) {
-          final end = DateTime.tryParse(endStr);
-          if (end != null && todayDate.isAfter(DateTime(end.year, end.month, end.day))) {
+        final dynamic rawEnd = med['end_date'] ??
+            med['course_end_date'] ??
+            med['end_course_date'] ??
+            med['course_end'];
+
+        final DateTime? endDate = _parseFlexibleDate(rawEnd);
+
+        bool isEnded = isArchived;
+        if (!isChronic && endDate != null) {
+          final endOnlyDate = DateTime(endDate.year, endDate.month, endDate.day);
+          if (todayDate.isAfter(endOnlyDate)) {
             isEnded = true;
           }
         }
@@ -430,7 +458,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         itemBuilder: (context, index) {
                           final course = _completedMedicines[index];
                           final startDate = course['start_date']?.toString() ?? 'N/A';
-                          final endDate = course['end_date']?.toString() ?? 'N/A';
+                          final endDate = course['end_date']?.toString() ??
+                              course['course_end_date']?.toString() ??
+                              course['end_course_date']?.toString() ??
+                              'N/A';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 10),

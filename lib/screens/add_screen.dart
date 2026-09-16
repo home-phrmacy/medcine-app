@@ -54,7 +54,7 @@ class _AddScreenState extends State<AddScreen> {
   }
 
   void _calculateEndDate() {
-    final int? days = int.tryParse(_courseDurationController.text);
+    final int? days = int.tryParse(_courseDurationController.text.trim());
     setState(() {
       if (days != null && days > 0) {
         _endDate = _startDate.add(Duration(days: days));
@@ -281,6 +281,19 @@ class _AddScreenState extends State<AddScreen> {
 
   Future<void> _saveMedicine() async {
     if (_formKey.currentState!.validate()) {
+      // حساب تاريخ النهاية برمجياً هنا لضمان عدم إرسال null أبداً
+      DateTime? effectiveEndDate;
+      int? parsedDays;
+
+      if (!_isChronic) {
+        parsedDays = int.tryParse(_courseDurationController.text.trim());
+        if (parsedDays != null && parsedDays > 0) {
+          effectiveEndDate = _startDate.add(Duration(days: parsedDays));
+        } else if (_endDate != null) {
+          effectiveEndDate = _endDate;
+        }
+      }
+
       List<String> formattedTimes = [];
       if (_enableNotifications) {
         for (int i = 0; i < _dosesPerDay; i++) {
@@ -299,8 +312,8 @@ class _AddScreenState extends State<AddScreen> {
             'image_url': _base64Image, // حفظ الصورة المحولة مباشرة بدون روابط
             'start_date': _formatDate(_startDate),
             'is_chronic': _isChronic,
-            'course_days': _isChronic ? null : int.tryParse(_courseDurationController.text),
-            'end_date': (_isChronic || _endDate == null) ? null : _formatDate(_endDate!),
+            'course_days': _isChronic ? null : parsedDays,
+            'end_date': (!_isChronic && effectiveEndDate != null) ? _formatDate(effectiveEndDate) : null,
             'enable_notifications': _enableNotifications,
             'notification_days': _enableNotifications ? _selectedDays.toList() : [],
             'doses_per_day': _enableNotifications ? _dosesPerDay : 0,
@@ -320,6 +333,7 @@ class _AddScreenState extends State<AddScreen> {
             _isAnalyzed = false;
             _selectedImageBytes = null;
             _base64Image = null;
+            _endDate = null;
             _nameController.clear();
             _courseDurationController.clear();
           });
